@@ -1,0 +1,24 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - deployment-scrumlr-backend.yaml
+  - service-scrumlr-backend.yaml
+  - poddisruptionbudget-backend.yaml
+configMapGenerator:
+  - name: scrumlr-backend
+    options:
+      labels:
+        app.kubernetes.io/name: "scrumlr"
+        app.kubernetes.io/component: "backend"
+        app.kubernetes.io/part-of: "scrumlr"
+    envs:
+      - configmap-scrumlr-backend.env
+secretGenerator:
+  - name: scrumlr-backend
+    options:
+      labels:
+        app.kubernetes.io/name: "scrumlr"
+        app.kubernetes.io/component: "backend"
+        app.kubernetes.io/part-of: "scrumlr"
+    envs:
+      - secret-scrumlr-backend.env

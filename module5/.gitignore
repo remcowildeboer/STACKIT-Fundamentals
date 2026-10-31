@@ -1,0 +1,4 @@
+jwt.key
+
+secret-scrumlr-backend.yaml
+ingress-scrumlr.yaml

@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: scrumlr-backend
+  labels:
+    app.kubernetes.io/name: "scrumlr"
+    app.kubernetes.io/component: "backend"
+    app.kubernetes.io/part-of: "scrumlr"
+data:
+  SCRUMLR_SERVER_PORT: "8080"
+  SCRUMLR_BASE_PATH: "/api"
+  SCRUMLR_SERVER_NATS_URL: "nats.nats.svc.cluster.local:4222"

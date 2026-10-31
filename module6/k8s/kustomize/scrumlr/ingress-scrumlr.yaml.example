@@ -1,0 +1,33 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: scrumlr
+  labels:
+    app.kubernetes.io/name: "scrumlr"
+    app.kubernetes.io/part-of: "scrumlr"
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-production"
+spec:
+  ingressClassName: traefik
+  tls:
+    - hosts:
+      - CHANGE-ME.domain.tld
+      secretName: scrumlr-tls
+  rules:
+    - host: CHANGE-ME.domain.tld
+      http:
+        paths:
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: scrumlr-backend
+                port:
+                  number: 8080
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: scrumlr-frontend
+                port:
+                  number: 80

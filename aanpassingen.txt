@@ -1,0 +1,14 @@
+eerste regel uit sa_key.json verwijderd. Moet beginnen met {
+Github\STACKIT-Fundamentals\module5\k8s\kustomize\ingress-scrumlr.yaml aangepast met juiste dns zone
+openssl ecparam -genkey -name secp521r1 -noout -out jwt.key
+versies aangepast van stackit provider (0.120.0) en ske version (1.36.5)
+helm repo add grafana https://grafana.github.io/helm-charts
+
+helm upgrade \
+  traefik traefik/traefik \
+  --install \
+  --namespace traefik \
+  --create-namespace \
+  --version 38.0.2 \
+  --values helm/traefik/values.yaml
+

@@ -1,0 +1,15 @@
+config:
+  cluster:
+    enabled: true
+    replicas: 3
+
+podTemplate:
+  topologySpreadConstraints:
+    kubernetes.io/hostname:
+      maxSkew: 1
+      whenUnsatisfiable: ScheduleAnyway
+
+promExporter:
+  enabled: true
+  podMonitor:
+    enabled: true

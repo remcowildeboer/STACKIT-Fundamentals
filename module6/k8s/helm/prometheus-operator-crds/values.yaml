@@ -1,0 +1,31 @@
+# Only enable Service & Pod Monitor
+crds:
+  servicemonitors:
+    enabled: true
+
+  podmonitors:
+    enabled: true
+
+  alertmanagerconfigs:
+    enabled: false
+
+  alertmanagers:
+    enabled: false
+
+  probes:
+    enabled: false
+
+  prometheusagents:
+    enabled: false
+
+  prometheuses:
+    enabled: false
+
+  prometheusrules:
+    enabled: false
+
+  scrapeconfigs:
+    enabled: false
+
+  thanosrulers:
+    enabled: false

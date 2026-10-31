@@ -1,0 +1,70 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: scrumlr-backend
+  labels:
+    app.kubernetes.io/name: "scrumlr"
+    app.kubernetes.io/component: "backend"
+    app.kubernetes.io/part-of: "scrumlr"
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: "scrumlr"
+      app.kubernetes.io/component: "backend"
+      app.kubernetes.io/part-of: "scrumlr"
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: "scrumlr"
+        app.kubernetes.io/component: "backend"
+        app.kubernetes.io/part-of: "scrumlr"
+    spec:
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: "scrumlr"
+              app.kubernetes.io/component: "backend"
+              app.kubernetes.io/part-of: "scrumlr"
+      containers:
+        - name: backend
+          image: ghcr.io/inovex/scrumlr.io/scrumlr-server:4.4.0
+          args:
+            - "/app/main"
+            - "-disable-check-origin"
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "200Mi"
+            limits:
+              memory: "200Mi"
+          startupProbe:
+            httpGet:
+              path: /api/health
+              port: 8080
+            failureThreshold: 30
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: 8080
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: 8080
+          envFrom:
+            - configMapRef:
+                name: scrumlr-backend
+            - secretRef:
+                name: scrumlr-backend
+          env:
+            - name: SCRUMLR_PRIVATE_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: scrumlr-ecdsa-key
+                  key: jwt.key
+          ports:
+            - containerPort: 8080

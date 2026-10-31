@@ -1,0 +1,14 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: scrumlr
+resources:
+  - namespace-scrumlr.yaml
+  - backend/
+  - frontend/
+  - ingress-scrumlr.yaml
+
+# Create key: openssl ecparam -genkey -name secp521r1 -noout -out jwt.key
+secretGenerator:
+- name: scrumlr-ecdsa-key
+  files:
+  - jwt.key

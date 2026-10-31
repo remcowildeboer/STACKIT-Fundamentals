@@ -1,0 +1,17 @@
+# HA deployment
+deployment:
+  replicas: 3
+
+# Enable logs for better debugging
+logs:
+  access:
+    enabled: true
+
+# Spread pods better between nodes
+topologySpreadConstraints:
+  - maxSkew: 1
+    topologyKey: kubernetes.io/hostname
+    whenUnsatisfiable: ScheduleAnyway
+    labelSelector:
+      matchLabels:
+        app.kubernetes.io/name: '{{ template "traefik.name" . }}'
