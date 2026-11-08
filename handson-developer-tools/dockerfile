@@ -1,0 +1,14 @@
+# Stage 1: build
+FROM golang:1.22-alpine AS build
+WORKDIR /src
+COPY go.mod ./
+RUN go mod download
+COPY . .
+RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /app
+
+# Stage 2: minimal runtime
+FROM gcr.io/distroless/static-debian12:nonroot
+COPY --from=build /app /app
+EXPOSE 8080
+USER nonroot:nonroot
+ENTRYPOINT ["/app"]

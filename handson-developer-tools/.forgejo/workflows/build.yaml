@@ -1,0 +1,27 @@
+name: Build container image
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build:
+    name: Build Docker image
+    runs-on: stackit-docker          # use the label of your runner, e.g. "ubuntu-latest"
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Show Docker version
+        run: docker version
+
+      - name: Build image
+        run: |
+          docker build -t my-app:${{ github.sha }} .
+
+      - name: List image
+        run: docker images my-app
