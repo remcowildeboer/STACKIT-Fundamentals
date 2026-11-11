@@ -1,0 +1,112 @@
+#cloud-config
+# TeamBoard baseline - OS hardening, data volume mount, web server placeholder.
+# NOTE: rendered by Terraform templatefile(); bash variables use $VAR (no braces).
+
+package_update: true
+package_upgrade: true
+packages:
+  - nginx
+  - ufw
+  - fail2ban
+  - unattended-upgrades
+
+write_files:
+  # --- SSH hardening: keys only, no root, no passwords ---------------------------
+  - path: /etc/ssh/sshd_config.d/99-teamboard-hardening.conf
+    permissions: "0644"
+    content: |
+      PasswordAuthentication no
+      KbdInteractiveAuthentication no
+      PermitRootLogin no
+      PubkeyAuthentication yes
+      X11Forwarding no
+      MaxAuthTries 3
+      LoginGraceTime 30
+
+  # --- Automatic security updates (reboots via STACKIT update schedule) ----------
+  - path: /etc/apt/apt.conf.d/20auto-upgrades
+    permissions: "0644"
+    content: |
+      APT::Periodic::Update-Package-Lists "1";
+      APT::Periodic::Unattended-Upgrade "1";
+
+  # --- nginx must not start before the data volume is mounted --------------------
+  - path: /etc/systemd/system/nginx.service.d/10-require-data.conf
+    permissions: "0644"
+    content: |
+      [Unit]
+      RequiresMountsFor=${data_mount_point}
+
+  - path: /etc/nginx/sites-available/teamboard
+    permissions: "0644"
+    content: |
+      server {
+          listen 80 default_server;
+          server_name _;
+          root ${data_mount_point}/teamboard/www;
+          index index.html;
+          server_tokens off;
+          location /healthz { return 200 "ok\n"; add_header Content-Type text/plain; }
+      }
+
+  # --- Find, format (only if empty), and mount the data volume -----------------
+  - path: /usr/local/sbin/mount-data-volume.sh
+    permissions: "0755"
+    content: |
+      #!/bin/bash
+      set -euo pipefail
+      MOUNT_POINT="${data_mount_point}"
+      BYID="/dev/disk/by-id/virtio-${data_volume_serial}"
+      LABEL="teamboard-data"
+      DEV=""
+
+      # Volume is attached by Terraform after the VM boots: wait up to 10 min.
+      for i in $(seq 1 120); do
+        if [ -e "$BYID" ]; then DEV=$(readlink -f "$BYID"); break; fi
+        sleep 5
+      done
+
+      # Fallback: first whole disk that is not the root disk.
+      if [ -z "$DEV" ]; then
+        ROOT_DISK=$(lsblk -no PKNAME "$(findmnt -no SOURCE /)")
+        DEV=$(lsblk -dpno NAME,TYPE | awk '$2=="disk"{print $1}' | grep -v "/dev/$ROOT_DISK" | head -n1 || true)
+      fi
+      [ -n "$DEV" ] || { echo "Data volume not found" >&2; exit 1; }
+
+      # Never reformat an existing filesystem (VM replacement keeps the data).
+      if ! blkid "$DEV" >/dev/null 2>&1; then
+        mkfs.ext4 -L "$LABEL" "$DEV"
+      fi
+
+      UUID=$(blkid -s UUID -o value "$DEV")
+      mkdir -p "$MOUNT_POINT"
+      if ! grep -q "$UUID" /etc/fstab; then
+        echo "UUID=$UUID $MOUNT_POINT ext4 defaults,nofail,noatime,x-systemd.device-timeout=30 0 2" >> /etc/fstab
+      fi
+      systemctl daemon-reload
+      mountpoint -q "$MOUNT_POINT" || mount "$MOUNT_POINT"
+
+      mkdir -p "$MOUNT_POINT/teamboard/www" "$MOUNT_POINT/teamboard/app" "$MOUNT_POINT/teamboard/uploads"
+      if [ ! -f "$MOUNT_POINT/teamboard/www/index.html" ]; then
+        echo "<h1>TeamBoard</h1><p>Served from data volume on $(hostname)</p>" > "$MOUNT_POINT/teamboard/www/index.html"
+      fi
+      chown -R www-data:www-data "$MOUNT_POINT/teamboard"
+      echo "device=$DEV uuid=$UUID mount=$MOUNT_POINT" > /var/log/teamboard-data-volume.log
+
+runcmd:
+  - /usr/local/sbin/mount-data-volume.sh
+  # Host firewall as second layer (security group is the primary control).
+  - ufw default deny incoming
+  - ufw default allow outgoing
+  - ufw allow 22/tcp
+  - ufw allow 80/tcp
+  - ufw allow 443/tcp
+  - ufw --force enable
+  - systemctl enable --now fail2ban unattended-upgrades
+  - rm -f /etc/nginx/sites-enabled/default
+  - ln -sf /etc/nginx/sites-available/teamboard /etc/nginx/sites-enabled/teamboard
+  - systemctl daemon-reload
+  - systemctl restart ssh || systemctl restart sshd
+  - systemctl enable nginx
+  - systemctl restart nginx
+  - date -Is > /var/log/teamboard-bootstrap.done
