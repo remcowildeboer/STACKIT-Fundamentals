@@ -1,0 +1,20 @@
+# syntax=docker/dockerfile:1
+
+# ---- Build stage: full Python toolchain ----
+FROM python:3.11-slim-bookworm AS build
+WORKDIR /app
+COPY requirements.txt .
+RUN pip install --no-cache-dir --target=/app/deps -r requirements.txt
+COPY app.py .
+ARG VERSION=dev
+# ---- Runtime stage: distroless, no shell, no package manager ----
+FROM gcr.io/distroless/python3-debian12:nonroot
+LABEL org.opencontainers.image.version=$VERSION \
+      org.opencontainers.image.source="https://git-stackit-fundamentals.git.onstackit.cloud/remco.wildeboer.linkit/webapp"
+WORKDIR /app
+COPY --from=build /app /app
+ENV PYTHONPATH=/app/deps \
+    APP_VERSION=$VERSION
+EXPOSE 8080
+USER nonroot
+CMD ["app.py"]
